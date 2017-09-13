@@ -1,1 +1,1 @@
-# HMDevApp
+Prototype neural network solution for seo

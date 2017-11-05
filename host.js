@@ -3,6 +3,27 @@ var cheerio = require('cheerio');
 var URL = require('url-parse');
 var crawler = require('./public/js/crawler.js');
 const rl = require('readline');
+var synaptic = require('synaptic');
+var Neuron = synaptic.Neuron,
+    Layer = synaptic.Layer,
+    Network = synaptic.Network,
+    Trainer = synaptic.Trainer,
+    Architect = synaptic.Architect;
+
+var inLayer = new Layer(4);
+var hLayer = new Layer(3);
+var outLayer = new Layer(1);
+
+inLayer.project(hLayer);
+hLayer.project(outLayer);
+
+var testNet = new Network({
+	input: inLayer,
+	hidden: [hLayer],
+	output: outLayer
+});
+
+var lrate = 0.2;
 
 const r = rl.createInterface({
     input: process.stdin,
@@ -20,66 +41,52 @@ var tags_meta,
     tags_header,
     tags_title,
     tags_div,
+    tags_all,
     pageCount = 0;
 
 var requests = 0;
+var request_delay = 0;
+
+var trainDataSet = {}; //{site : [dataset]}
+var curr_data = null;
 
 r.question('Enter a website to crawl: ', (input) => {
     //if(!input.includes('http://www.'))
       //  input = 'http://www.' + input;
 
-    rootUrl = input;
-
     r.question('Enter a search query: ', (query) =>{
         sQuery = query;
 
-        getQueryURLS(sQuery);
+        var results = getQueryURLS();
+        var x = 0;
 
-        /*if (sQuery){
+        if (sQuery){
             words = sQuery.split(" ").filter(function(value, index, self) { 
                 return self.indexOf(value) === index;
             });
-        }*/
-        //console.log('visiting: ' + input);
-        //makeRequest(input);
+        }
+
+        for(result in results){
+        	rootUrl = results[result];
+        	console.log('visiting: ' + results[result]);
+        	makeRequest(results[result]);
+    	}
+
         r.close();
     });
 });
 
-function getQueryURLS(q){
-    urls = [];
-    words = q.split(" ");
-
-    searchUrl = "https://www.google.com/search?q=";
-
-    for (wid in words){
-        searchUrl += words[wid] + '+';
-    }
-    searchUrl = searchUrl.substring(0, searchUrl.length - 1);
-
-    request(searchUrl, function(err, res, data){
-        if(err) {
-          console.log("Error: " + err);
-        }
-
-        console.log('getting search results from: ' + searchUrl);
-
-        if(res.statusCode === 200) {
-            // Parse the document body
-            var $ = cheerio.load(data);
-
-            console.log($('.srg'));
-
-           /* $('#ires>#rso>._NId').each(function(){
-                console.log('test');
-                console.log($(this).find('a').attr('href'));
-                urls.push($(this).find('a').attr('href'));
-            });*/
-        }
-
-        console.log(urls);
-    });
-
+function getQueryURLS(){
+	return ["http://www.leatherfoot.com/",
+			//"http://www.thebay.com/webapp/wcs/stores/servlet/en/thebay/search/shoes/mens-shoes",
+			"http://www.blogto.com/toronto/the_best_shoe_stores_in_toronto/",
+			"http://www.davidsfootwear.com",
+			//"http://www.brownsshoes.com/",
+			"http://www.capezioshoes.ca",
+			//"http://www.aldoshoes.com/ca/en/women/clearance",
+			"http://www.aldoshoes.com/ca/en",
+			//"http://www.stacyadams.ca/"
+			];
 }
 
 function makeRequest(visit){
@@ -112,28 +119,57 @@ function makeRequest(visit){
 
             console.log('there are ' + $('a[href^="/"]').length + ' a tags');
             tags_a += $('meta').length;
+            tags_all += tags_meta + tags_div + tags_a;
 
-            for(var i = 0; i < words.length; i++){
+            /*for(var i = 0; i < words.length; i++){
                 console.log("Searching for word: " + words[i])
                 let s = crawler.getWords($, words[i]);
                 console.log(s)
-            }
+            }*/
 
-            for(var i = 0; i < pageLinks['i'].length; i++){
-                if(requests > 10){
-                    console.log('requests exceeded, stopping')
-                    break;
-                }
-                
+            for(var i = 0; i < pageLinks['i'].length && requests < 10; i++){
                 /*this makes all the requests from the current set of internal links simultaneously,
                  and returns the data from that set simultaneously*/
-                if(pageLinks['i'] && visited.indexOf(pageLinks['i'][i]) == -1){
+            	if(pageLinks['i'] && visited.indexOf(pageLinks['i'][i]) == -1){
                     requests ++;
                     visited.push(pageLinks['i'][i]);
+                    request_delay = new Date(new Date().getTime() + 2 * 1000)
+                    while(request_delay > new Date()){}
                     console.log("making request number: " + requests);
-                    makeRequest(rootUrl + pageLinks['i'][i]);
-                }
+                    makeRequest(rootUrl + pageLinks['i'][i])
+            	}
             }
+
+            console.log('pushing');
+            curr_data = [all_links.length/10, tags_meta/tags_all, tags_div/tags_all, tags_a/tags_all];
+  			pushDataToSet(rootUrl, curr_data);
         }
     });
+}
+
+function pushDataToSet(url, data){
+	trainDataSet[url] = data;
+	console.log(trainDataSet);
+
+	if(Object.keys(trainDataSet).length >= 5){
+		console.log('training');
+		console.log(trainDataSet);
+
+		for(var i = 0; i < 2000; i++){
+    		for(tData in trainDataSet){
+    			console.log('training');
+    			trainNN(trainDataSet[tData], lrate, [Object.keys(trainDataSet).indexOf(tData)/5]);
+    		}
+    	}
+
+    	for(tData in trainDataSet){
+    		console.log(testNet.activate(tData)); //hopefully 1,2,3...
+    	}
+
+	}
+}
+
+function trainNN(data, rate, expectation){
+	testNet.activate(data);
+	testNet.propagate(rate, expectation);
 }

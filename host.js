@@ -69,7 +69,10 @@ r.question('Enter a website to crawl: ', (input) => {
         for(result in results){
         	rootUrl = results[result];
         	console.log('visiting: ' + results[result]);
-        	makeRequest(results[result]);
+        	makeRequest(results[result], function(data){
+        		console.log('pushing');
+        		pushDataToSet(rootUrl, data);
+        	});
     	}
 
         r.close();
@@ -89,9 +92,9 @@ function getQueryURLS(){
 			];
 }
 
-function makeRequest(visit){
+function makeRequest(visit, cb){
 
-    return request(visit, function(err, res, data) {
+    request(visit, function(err, res, data) {
         if(err) {
           console.log("Error: " + err);
         }
@@ -140,9 +143,10 @@ function makeRequest(visit){
             	}
             }
 
-            console.log('pushing');
-            curr_data = [all_links.length/10, tags_meta/tags_all, tags_div/tags_all, tags_a/tags_all];
-  			pushDataToSet(rootUrl, curr_data);
+            if(visit == rootUrl){
+	            curr_data = [all_links.length/10, tags_meta/tags_all, tags_div/tags_all, tags_a/tags_all];
+	  			cb(curr_data);
+	  		}
         }
     });
 }

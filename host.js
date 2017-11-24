@@ -32,7 +32,8 @@ const r = rl.createInterface({
 
 var sQuery = null;
 var words = null;
-var visited = [];
+//var visited = [];
+var visited = {}; //{url_root : [internal, internal, ...]}
 var all_links = [];
 var rootUrl = null;
 
@@ -92,7 +93,44 @@ function getQueryURLS(){
 			];
 }
 
-function makeRequest(visit, cb){
+function depthRequest(url_root, url, depth){
+	var curr_tags = [0,0,0,0,0,0];
+
+	if(url in visited[url_root] || depth > 4)
+		return;
+
+	//pause
+	request_delay = new Date(new Date().getTime() + 0.5 * 1000)
+                    while(request_delay > new Date()){}
+
+	request(url, function(err, res, data){
+		if(err) {
+          console.log("Error: " + err);
+        }
+
+        if(res.statusCode === 200) {
+        	var $ = cheerio.load(data);
+
+            let pageLinks = crawler.getLinks($);
+            all_links.push(pageLinks);
+
+            curr_tags[0] = 0; //todo: set tag values appropriatley
+        }
+
+	});
+
+	for(tag in curr_tags){
+		global_tags[tag] += curr_tags[tag];
+	}
+
+	visited[url_root].push(url);
+
+	while(pageLinks['i']){
+		depthRequest(url_root, url_root + pageLinks['i'].pop(), depth++);
+	}
+}
+
+function makeRequest(visit){
 
     request(visit, function(err, res, data) {
         if(err) {

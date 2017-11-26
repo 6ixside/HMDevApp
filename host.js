@@ -33,9 +33,11 @@ const r = rl.createInterface({
 var sQuery = null;
 var words = null;
 //var visited = [];
-var visited = {}; //{url_root : [internal, internal, ...]}
-var all_links = [];
+var visited = {"http://www.leatherfoot.com" : []}; //{url_root : [internal, internal, ...]}
+var to_visit = {"http://www.leatherfoot.com" : []};
 var rootUrl = null;
+
+var global_tags = [0,0,0,0,0,0];
 
 var tags_meta,
     tags_a,
@@ -67,28 +69,31 @@ r.question('Enter a website to crawl: ', (input) => {
             });
         }
 
-        for(result in results){
+        /*for(result in results){
         	rootUrl = results[result];
         	console.log('visiting: ' + results[result]);
         	makeRequest(results[result], function(data){
         		console.log('pushing');
         		pushDataToSet(rootUrl, data);
         	});
-    	}
+    	}*/
+
+    	depthRequest(results[0], results[0], 1);
+    	
 
         r.close();
     });
 });
 
 function getQueryURLS(){
-	return ["http://www.leatherfoot.com/",
+	return ["http://www.leatherfoot.com",
 			//"http://www.thebay.com/webapp/wcs/stores/servlet/en/thebay/search/shoes/mens-shoes",
 			"http://www.blogto.com/toronto/the_best_shoe_stores_in_toronto/",
 			"http://www.davidsfootwear.com",
 			//"http://www.brownsshoes.com/",
 			"http://www.capezioshoes.ca",
 			//"http://www.aldoshoes.com/ca/en/women/clearance",
-			"http://www.aldoshoes.com/ca/en",
+			"http://www.aldoshoes.com",
 			//"http://www.stacyadams.ca/"
 			];
 }
@@ -96,38 +101,65 @@ function getQueryURLS(){
 function depthRequest(url_root, url, depth){
 	var curr_tags = [0,0,0,0,0,0];
 
-	if(url in visited[url_root] || depth > 4)
+	url = url.replace(new RegExp("^https?://"), '');
+
+	console.log("depth: " + depth)
+	console.log(visited[url_root]);
+
+	if(visited[url_root].includes("http://" + url)){
+		console.log("has been visited, returning");
 		return;
+	}
+
+	if(depth > 2){
+		console.log("maximum recursion depth exceeded");
+		return;
+	}
+
+	visited[url_root].push("http://" + url);
 
 	//pause
-	request_delay = new Date(new Date().getTime() + 0.5 * 1000)
+	request_delay = new Date(new Date().getTime() + 3 * 1000)
                     while(request_delay > new Date()){}
 
-	request(url, function(err, res, data){
+	request("http://" + url, function(err, res, data){
 		if(err) {
           console.log("Error: " + err);
+          return;
         }
 
         if(res.statusCode === 200) {
         	var $ = cheerio.load(data);
 
-            let pageLinks = crawler.getLinks($);
-            all_links.push(pageLinks);
+            let pageLinks = crawler.getLinks($, url_root);
 
-            curr_tags[0] = 0; //todo: set tag values appropriatley
-        }
+            to_visit[url_root] = to_visit[url_root].concat(pageLinks['i']);
+            
+            curr_tags[0] += $('meta').length; //todo: set tag values appropriatley
+            curr_tags[1] += $('a').length;
+            curr_tags[2] += $('h1').length + $('h2').length + $('h3').length + $('h4').length + $('h5').length + $('h6').length;
+            curr_tags[4] += $('div').length;
 
+            /*for(tag in curr_tags){
+				global_tags[tag] += curr_tags[tag];
+			}*/
+
+
+			var c = 0;
+			while(to_visit[url_root].length > 0){
+				console.log("globals");
+				console.log(global_tags);
+				console.log("visiting: " + url_root + to_visit[url_root][to_visit[url_root].length - 1]);
+				//console.log(to_visit[url_root]);
+				depthRequest(url_root, url_root + to_visit[url_root].pop(), depth + 1);
+				c++;
+			}
+
+			console.log("globals");
+			console.log(global_tags);
+		}
 	});
 
-	for(tag in curr_tags){
-		global_tags[tag] += curr_tags[tag];
-	}
-
-	visited[url_root].push(url);
-
-	while(pageLinks['i']){
-		depthRequest(url_root, url_root + pageLinks['i'].pop(), depth++);
-	}
 }
 
 function makeRequest(visit){

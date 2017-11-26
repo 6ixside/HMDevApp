@@ -9,22 +9,35 @@ exports.getWords = function($, word) {
   return false;
 }
 
-exports.getLinks = function($){
+exports.getLinks = function($, url_root){
 	var links = {}
 	var internals = [];
 	var externals = [];
+
+	url_root = url_root.replace(new RegExp("^https?://"), '');
 
 	var iLinks = $("a[href^='/']");
 	var eLinks = $("a[href^='http']");
 
 	iLinks.each(function(){
-		if(internals.indexOf($(this).attr('href')) == -1)
-			internals.push($(this).attr('href'));
+		l = $(this).attr('href');
+		l = l.replace(url_root, '');
+
+		if(internals.indexOf(l) == -1)
+			internals.push(l);
 	})
 
 	eLinks.each(function(){
-		if(externals.indexOf($(this).attr('href')) == -1)
-			externals.push($(this).attr('href'));
+		l = $(this).attr('href');
+		l = l.replace(new RegExp("^https?://"), '');
+
+		if(l.includes(url_root) && internals.indexOf($(this).attr('href')) == -1){
+			l = l.replace(url_root, ''); //replace the root url if this is an internal
+			internals.push(l);
+		}
+
+		if(externals.indexOf(l) == -1)
+			externals.push(l);
 	})
 
 	links['i'] = internals;

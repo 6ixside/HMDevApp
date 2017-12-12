@@ -78,8 +78,10 @@ r.question('Enter a website to crawl: ', (input) => {
         	});
     	}*/
 
-    	depthRequest(results[0], results[0], 1);
-    	
+    	depthRequest(results[0], results[0], 1, function(){
+    		console.log(global_tags);
+    	});
+    	setTimeout(function(){console.log("hello")}, 0);
 
         r.close();
     });
@@ -98,7 +100,7 @@ function getQueryURLS(){
 			];
 }
 
-function depthRequest(url_root, url, depth){
+function depthRequest(url_root, url, depth, cb){
 	var curr_tags = [0,0,0,0,0,0];
 
 	url = url.replace(new RegExp("^https?://"), '');
@@ -140,9 +142,12 @@ function depthRequest(url_root, url, depth){
             curr_tags[2] += $('h1').length + $('h2').length + $('h3').length + $('h4').length + $('h5').length + $('h6').length;
             curr_tags[4] += $('div').length;
 
-            /*for(tag in curr_tags){
+            console.log("current");
+			console.log(curr_tags);
+
+            for(tag in curr_tags){
 				global_tags[tag] += curr_tags[tag];
-			}*/
+			}
 
 
 			var c = 0;
@@ -160,65 +165,8 @@ function depthRequest(url_root, url, depth){
 		}
 	});
 
-}
+	cb;
 
-function makeRequest(visit){
-
-    request(visit, function(err, res, data) {
-        if(err) {
-          console.log("Error: " + err);
-        }
-
-        console.log('visiting: ' + visit);
-        //requests++;
-    // Check status code (200 is HTTP OK)
-        console.log("Status code: " + res.statusCode);
-        if(res.statusCode === 200) {
-            // Parse the document body
-            var $ = cheerio.load(data);
-
-            let pageLinks = crawler.getLinks($);
-            all_links.push(pageLinks);
-
-            console.log(pageLinks);
-
-            console.log("Page title:  " + $('title').text());
-            //console.log($('html').prop("tagName"));
-            console.log('there are ' + $('meta').length + ' meta tags');
-            tags_meta += $('meta').length;
-
-            console.log('there are ' + $('div').length + ' div tags');
-            tags_div += $('meta').length;
-
-            console.log('there are ' + $('a[href^="/"]').length + ' a tags');
-            tags_a += $('meta').length;
-            tags_all += tags_meta + tags_div + tags_a;
-
-            /*for(var i = 0; i < words.length; i++){
-                console.log("Searching for word: " + words[i])
-                let s = crawler.getWords($, words[i]);
-                console.log(s)
-            }*/
-
-            for(var i = 0; i < pageLinks['i'].length && requests < 10; i++){
-                /*this makes all the requests from the current set of internal links simultaneously,
-                 and returns the data from that set simultaneously*/
-            	if(pageLinks['i'] && visited.indexOf(pageLinks['i'][i]) == -1){
-                    requests ++;
-                    visited.push(pageLinks['i'][i]);
-                    request_delay = new Date(new Date().getTime() + 2 * 1000)
-                    while(request_delay > new Date()){}
-                    console.log("making request number: " + requests);
-                    makeRequest(rootUrl + pageLinks['i'][i])
-            	}
-            }
-
-            if(visit == rootUrl){
-	            curr_data = [all_links.length/10, tags_meta/tags_all, tags_div/tags_all, tags_a/tags_all];
-	  			cb(curr_data);
-	  		}
-        }
-    });
 }
 
 function pushDataToSet(url, data){

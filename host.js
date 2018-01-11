@@ -88,21 +88,6 @@ r.question('Enter a website to crawl: ', (input) => {
             });
         }
 
-        /*for(result in results){
-        	rootUrl = results[result];
-        	console.log('visiting: ' + results[result]);
-        	makeRequest(results[result], function(data){
-        		console.log('pushing');
-        		pushDataToSet(rootUrl, data);
-        	});
-    	}*/
-
-    	//depthRequest(results[5], results[5], 1);
-
-    	/*for(var res in results){
-    		depthRequest(results[res], results[res], 1);
-    	}*/
-
     	var next = getNext();
     	next();
 
@@ -111,21 +96,19 @@ r.question('Enter a website to crawl: ', (input) => {
 });
 
 function getNext(){
-	status = 0;
-	console.log('items be: ' + results.length);
 	if(results.length > 0){
 		console.log('getting next');
 		var nextUrl = results.pop();
 
-		return function(){
-			status = 0;
-			depthRequest(nextUrl, nextUrl, 1, function(){
-				status = 0;
-				console.log('is it here?');
+		var nextCall = function(){
+			breadthRequest(nextUrl, nextUrl, 1, function(){
+
 				var r = getNext();
-				r();
+				return r;
 			});
 		};
+
+		return nextCall;
 	}
 	else
 		return;
@@ -146,7 +129,7 @@ function getQueryURLS(){
 			];
 }
 
-function depthRequest(url_root, url, depth, cb){
+function breadthRequest(url_root, url, depth, cb){
 	status++;
 	console.log('Status: ' + status);
 	var curr_tags = [0,0,0,0,0,0];
@@ -158,11 +141,13 @@ function depthRequest(url_root, url, depth, cb){
 
 	if(visited[url_root].includes("http://" + url)){
 		console.log("has been visited, returning");
+		status--;
 		return;
 	}
 
 	if(depth > maxDepth){
 		console.log("maximum recursion depth exceeded");
+		status--;
 		return;
 	}
 
@@ -180,18 +165,14 @@ function depthRequest(url_root, url, depth, cb){
 	          return;
 	        }
 
-	       /* if(currentProgress == 100.00 && depth >= maxDepth){
-	        	return;
-	        } */
-
 	        if(res.statusCode === 200) {
 	        	var $ = cheerio.load(data);
 
 	            let pageLinks = crawler.getLinks($, url_root);
 
 	            to_visit[url_root] = to_visit[url_root].concat(pageLinks['i']);
+
 	            totalLinks += to_visit[url_root].length;
-	            //console.log('total links: ' + totalLinks);
 	            
 	            curr_tags[0] += $('meta').length; //todo: set tag values appropriatley
 	            curr_tags[1] += $('a').length;
@@ -213,7 +194,7 @@ function depthRequest(url_root, url, depth, cb){
 				//	console.log(global_tags);
 					console.log("visiting: " + url_root + to_visit[url_root][to_visit[url_root].length - 1]);
 					//console.log(to_visit[url_root]);
-					depthRequest(url_root, url_root + to_visit[url_root].pop(), depth + 1, cb);
+					breadthRequest(url_root, url_root + to_visit[url_root].pop(), depth + 1, cb);
 					c++;
 					currLinkQty++;
 					currentProgress = (100 * (currLinkQty / totalLinks)).toFixed(2);
@@ -224,14 +205,20 @@ function depthRequest(url_root, url, depth, cb){
 
 				if(--status <= 0){
 					status = 0;
+					totalLinks = 0;
+					currLinkQty = 0;
+
 					console.log('status is now 0: ' + status);
 					console.log('done');
 					console.log(global_tags)
 					pushDataToSet(url_root, global_tags[url_root]);
-					cb();
+					var callback = cb();
+
+					if(typeof callback == 'function')
+						callback();
 				}
 				else
-					console.log('this is the status: ' + status);
+					console.log('this is the status: ' + status);		
 				
 				//console.log("globals");
 				//console.log(global_tags);
@@ -265,11 +252,15 @@ function pushDataToSet(url, data){
     	}
 
     	for(tData in trainDataSet){
-    		console.log('outputs');
+    		console.log('*****outputs*****');
+    		console.log(tData);
     		console.log(testNet.activate(trainDataSet[tData]));
+    		console.log('*****************');
+    		console.log('\n');
     	}
 
     	//for(tData in trainDataSet){
+    		console.log('random sample');
     		console.log(testNet.activate([0.01, 0.5, 0.2, 0, 0.29, 1])); //hopefully 1,2,3...
     	//}
 
